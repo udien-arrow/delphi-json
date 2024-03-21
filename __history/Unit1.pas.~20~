@@ -1,0 +1,419 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, IdBaseComponent, IdComponent,
+  IdTCPConnection, IdTCPClient, IdHTTP, Vcl.Grids, Vcl.DBGrids, Vcl.StdCtrls,uLkJSON ;
+
+type
+  TForm1 = class(TForm)
+    BtnOnOff: TButton;
+    EdId: TEdit;
+    EdtNama: TEdit;
+    EdtAlamat: TEdit;
+    BtnSimpan: TButton;
+    BtnUbah: TButton;
+    BtnHapus: TButton;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    IdHTTP1: TIdHTTP;
+    StringGrid1: TStringGrid;
+    procedure FormShow(Sender: TObject);
+    procedure BtnSimpanClick(Sender: TObject);
+    procedure BtnOnOffClick(Sender: TObject);
+    procedure EdIdChange(Sender: TObject);
+    procedure BtnHapusClick(Sender: TObject);
+    procedure BtnUbahClick(Sender: TObject);
+  private
+    { Private declarations }
+    procedure buattabel;
+    procedure kondisi_awal;
+    procedure kondisi_proses;
+    procedure Bersih;
+    procedure tampil;
+  public
+    { Public declarations }
+    get_url : string;
+    js : TlkJSONobject;
+    sts:integer;
+
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+function HTTPEncode(const AStr: String): String;
+const
+  NoConversion = ['A'..'Z','a'..'z','*','@','.','_','-'];
+var
+  Sp, Rp: PChar;
+begin
+  SetLength(Result, Length(AStr) * 3);
+  Sp := PChar(AStr);
+  Rp := PChar(Result);
+  while Sp^ <> #0 do
+  begin
+    if Sp^ in NoConversion then
+      Rp^ := Sp^
+    else
+      if Sp^ = ' ' then
+        Rp^ := '+'
+      else
+      begin
+        FormatBuf(Rp^, 3, '%%%.2x', 6, [Ord(Sp^)]);
+        Inc(Rp,2);
+      end;
+    Inc(Rp);
+    Inc(Sp);
+  end;
+  SetLength(Result, Rp - PChar(Result));
+end;
+
+function MyEncodeUrl(source:string):string;
+var i:integer;
+begin
+  result := '';
+  for i := 1 to length (source) do
+  if not (source [i] in ['A'..'Z','a'..'z','0','1'..'9','-','_','~','.']) then
+  result := result + '%'+IntToHex(ord(source[i]),2)
+  else result := result + source[i];
+
+end;
+
+procedure TForm1.Bersih;
+begin
+  EdId.Clear;
+  EdtNama.Clear;
+  EdtAlamat.Clear;
+end;
+
+procedure TForm1.kondisi_proses;
+begin
+  BtnSimpan.Enabled := False;
+  BtnUbah.Enabled := True;
+  BtnHapus.Enabled :=True;
+end;
+
+procedure TForm1.BtnHapusClick(Sender: TObject);
+begin
+  if Length(EdId.Text) = 0 then begin
+Beep;
+application.MessageBox('Id Tidak Boleh Kosong!'+#13+
+'Silahkan Diisi!!!','Informasi Kosong...',MB_ICONERROR);
+EdId.SetFocus;
+end
+//else if Length(cmbJK.Text) = 0 then begin
+//Beep;
+//application.MessageBox('Jenis Kelamin Tidak Boleh Kosong!'+#13+
+//'Silahkan Dipilih!!!','Informasi Kosong...',MB_ICONERROR);
+//cmbJK.SetFocus;
+//end
+else begin
+//Hendel Error jika Server Nati
+try
+get_url := IdHTTP1.Get('http://localhost/api-json/hapus.php?id='+EdId.Text);
+except
+application.MessageBox('Servernya Mati.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Koneksi...',MB_ICONERROR);
+exit;
+end;
+//Hendel Error jika URL tidak bisa diterjermahkan JSON
+try
+js := TlkJSON.ParseText(get_url) as TlkJSONObject;
+except
+application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+exit;
+end;
+//Hendel Error apabila Datanya kosong
+try
+sts := StrToInt(VarToStr(js.Field['sukses'].Value));
+except
+application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+exit;
+end;
+if sts = 1 then begin
+//Menampilkan Pesan Dari API Server Jika Berhasil
+MessageDlg(VarToStr(js.Field['pesan'].Value), mtInformation, [mbOK], 0);
+Bersih;
+EdId.Clear;
+tampil;
+EdId.SetFocus;
+end
+else begin
+//Menampilkan Pesan Dari API Server Jika Gagal
+MessageDlg(VarToStr(js.Field['pesan'].Value), mtError, [mbOK], 0);
+end;
+end;
+end;
+
+procedure TForm1.BtnOnOffClick(Sender: TObject);
+begin
+buattabel;
+kondisi_awal;
+EdId.SetFocus;
+tampil;
+
+end;
+
+procedure TForm1.BtnSimpanClick(Sender: TObject);
+
+begin
+  if Length(EdId.Text) = 0 then begin
+    Beep;
+    application.MessageBox('Id Tidak Boleh Kosong!'+#13+
+    'Silahkan Diisi!!!','Informasi Kosong...',MB_ICONERROR);
+    EdId.SetFocus;
+  end
+  else
+  begin
+//Hendel Error jika Server Nati
+  try
+    {
+    http://localhost/api-json/insert.php?id=A006&nama=Gusrio%20Tendra&alamat=Dihatimu
+    }
+  get_url := IdHTTP1.Get('http://localhost/api-json/insert.php?id='+HTTPEncode(EdId.Text)+'&nama='+HTTPEncode(EdtNama.Text)+'&alamat='+HTTPEncode(EdtAlamat.Text));
+    except
+  application.MessageBox('Servernya Mati.'+#13+
+    'Silahkan Hubungi Admin!!!','Informasi Koneksi...',MB_ICONERROR);
+  exit;
+  end;
+
+  //Hendel Error jika URL tidak bisa diterjermahkan JSON
+  try
+  js := TlkJSON.ParseText(get_url) as TlkJSONObject;
+  except
+  application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+  'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+  exit;
+  end;
+     //Hendel Error apabila Datanya kosong
+  try
+  sts := StrToInt(VarToStr(js.Field['sukses'].Value));
+  except
+  application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+  'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+  exit;
+  end;
+  if sts = 1 then begin
+  //Menampilkan Pesan Dari API Server Jika Berhasil
+  MessageDlg(VarToStr(js.Field['pesan'].Value), mtInformation, [mbOK], 0);
+  Bersih;
+  EdId.Clear;
+  tampil;
+  EdId.SetFocus;
+  end
+else begin
+//Menampilkan Pesan Dari API Server Jika Gagal
+MessageDlg(VarToStr(js.Field['pesan'].Value), mtError, [mbOK], 0);
+end;
+  end;
+end;
+
+procedure TForm1.BtnUbahClick(Sender: TObject);
+begin
+  if Length(EdId.Text) = 0 then begin
+Beep;
+application.MessageBox('Id Tidak Boleh Kosong!'+#13+
+'Silahkan Diisi!!!','Informasi Kosong...',MB_ICONERROR);
+EdId.SetFocus;
+end
+//else if Length(cmbJK.Text) = 0 then begin
+//Beep;
+//application.MessageBox('Jenis Kelamin Tidak Boleh Kosong!'+#13+
+//'Silahkan Dipilih!!!','Informasi Kosong...',MB_ICONERROR);
+//cmbJK.SetFocus;
+//end
+else begin
+//Hendel Error jika Server Nati
+try
+{
+http://localhost:69/tesjson/ubah.php?id=A006&nama=Gusrio%20Tendra&alamat=Dihatim
+u&jk=Laki-Laki
+}
+get_url :=
+IdHTTP1.Get('http://localhost/api-json/ubah.php?id='+HTTPEncode(EdId.Text)+'&nama='+HTTPEncode(EdtNama.Text)+'&alamat='+HTTPEncode(EdtAlamat.Text));
+except
+application.MessageBox('Servernya Mati.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Koneksi...',MB_ICONERROR);
+exit;
+end;
+//Hendel Error jika URL tidak bisa diterjermahkan JSON
+try
+js := TlkJSON.ParseText(get_url) as TlkJSONObject;
+except
+application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+exit;
+end;
+//Hendel Error apabila Datanya kosong
+try
+sts := StrToInt(VarToStr(js.Field['sukses'].Value));
+except
+application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+exit;
+end;
+if sts = 1 then begin
+
+//Menampilkan Pesan Dari API Server Jika Berhasil
+MessageDlg(VarToStr(js.Field['pesan'].Value), mtInformation, [mbOK], 0);
+Bersih;
+EdId.Clear;
+tampil;
+EdId.Text;
+end
+else begin
+//Menampilkan Pesan Dari API Server Jika Gagal
+MessageDlg(VarToStr(js.Field['pesan'].Value), mtError, [mbOK], 0);
+end;
+end;
+end;
+
+procedure TForm1.buattabel;
+begin
+   with StringGrid1 do begin
+
+         Cells[0,0]:='No';
+         Cells[1,0]:='ID';
+         Cells[2,0]:='Nama';
+         Cells[3,0]:='Alamat';
+
+         ColWidths[0] := 30;
+         ColWidths[1] := 80;
+         ColWidths[2] := 200;
+         ColWidths[3] := 300;
+
+         RowCount := 2;
+         ColCount := 4;
+   end;
+end;
+
+procedure TForm1.EdIdChange(Sender: TObject);
+var
+i : Integer;
+begin
+ if Length(EdId.Text) <> 0 then begin
+//Hendel Error jika Server Nati
+try
+get_url := IdHTTP1.Get('http://localhost/api-json/select.php?id='+EdId.Text);
+except
+application.MessageBox('Servernya Mati.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Koneksi...',MB_ICONERROR);
+exit;
+end;
+//Hendel Error jika URL tidak bisa diterjermahkan JSON
+try
+js := TlkJSON.ParseText(get_url) as TlkJSONObject;
+except
+application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+exit;
+end;
+//Hendel Error apabila Datanya kosong
+try
+sts := StrToInt(VarToStr(js.Field['sukses'].Value));
+except
+application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+exit;
+end;
+  if sts = 1 then
+  begin
+  application.MessageBox('Datanya Sudah Ada!'+#13+
+  'Silahkan Inputkkan Data Yang Lain!!!','Informasi Data Kosong...',MB_ICONEXCLAMATION);
+  //kondisi_proses;
+  //Baca data json dengan label data yang terdapat pada coding PHPnya
+  js:= TlkJSONObject(js.Field['data']);
+  //Sesuaikan julmlah baris Grid dengan banyaknya data dari databasenya
+  StringGrid1.RowCount := js.Count + 1;
+//Meload data ke Memo, Listbox dan Grid
+  for i := 0 to js.Count - 1 do
+    begin
+    //Load Data Ke Editbox Memo dan Combo
+    EdtNama.Text:=VarToStr(js.Child[i].Field['nama'].Value);
+    EdtAlamat.text :=VarToStr(js.Child[i].Field['alamat'].Value);
+    //cmbJK.Text:=VarToStr(js.Child[i].Field['jk'].Value);
+    //Load Data Ke Grid
+    StringGrid1.Cells[0,i+1] := IntToStr(i+1)+'.';
+    StringGrid1.Cells[1, i + 1] := VarToStr(js.Child[i].Field['id'].Value);
+    StringGrid1.Cells[2, i + 1] := VarToStr(js.Child[i].Field['nama'].Value);
+    StringGrid1.Cells[3, i + 1] := VarToStr(js.Child[i].Field['alamat'].Value);
+    end;
+    js.Free;
+    end
+else
+  begin
+    tampil;
+    kondisi_proses;
+  end;
+end;
+end;
+
+procedure TForm1.FormShow(Sender: TObject);
+begin
+//tampil;
+end;
+
+procedure TForm1.kondisi_awal;
+begin
+ BtnSimpan.Enabled := True;
+ BtnUbah.Enabled := false;
+ BtnHapus.Enabled := False;
+end;
+
+procedure TForm1.tampil;
+var i,sts:integer;
+begin
+   //Hendel Error jika Server Nati
+   try
+     get_url := IdHTTP1.Get('http://localhost/api-json/tampilkan.php');
+   except
+   Application.MessageBox('Server Mati'+#13+'Silahkan hubungi admin','informasi',MB_ICONERROR);
+   exit;
+   end;
+   //Hendel Error jika URL tidak bisa diterjermahkan JSON
+    try
+    js := TlkJSON.ParseText(get_url) as TlkJSONObject;
+    except
+    application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+    'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+    exit;
+    end;
+   //Hendel Error apabila Datanya kosong
+  try
+  sts := StrToInt(VarToStr(js.Field['sukses'].Value));
+  except
+  application.MessageBox('Web Servis Gagal Diterjemahkan.'+#13+
+  'Silahkan Hubungi Admin!!!','Informasi Terjemah...',MB_ICONERROR);
+    exit;
+  end;
+  if sts <> 1 then begin
+  application.MessageBox('Datanya Kosong.'+#13+
+  'Silahkan Menunggu Datanya Diinput Oleh Admin!!!','Informasi Data Kosong...',MB_ICONEXCLAMATION);
+  exit;
+  end;
+  //Baca data json dengan label data yang terdapat pada coding PHPnya
+  js:= TlkJSONObject(js.Field['data']);
+  //Sesuaikan julmlah baris Grid dengan banyaknya data dari databasenya
+  StringGrid1.RowCount := js.Count + 1;
+  //Meload data ke Memo, Listbox dan Grid
+  for i := 0 to js.Count - 1 do begin
+  //Load Data Ke Grid
+  StringGrid1.Cells[0,i+1] := IntToStr(i+1)+'.';
+  StringGrid1.Cells[1, i + 1] := VarToStr(js.Child[i].Field['id'].Value);
+  StringGrid1.Cells[2, i + 1] := VarToStr(js.Child[i].Field['nama'].Value);
+  StringGrid1.Cells[3, i + 1] := VarToStr(js.Child[i].Field['alamat'].Value);
+  end;
+  js.Free;
+end;
+
+end.
