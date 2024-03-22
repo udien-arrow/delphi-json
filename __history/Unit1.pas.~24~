@@ -118,12 +118,12 @@ application.MessageBox('Id Tidak Boleh Kosong!'+#13+
 'Silahkan Diisi!!!','Informasi Kosong...',MB_ICONERROR);
 EdId.SetFocus;
 end
-//else if Length(cmbJK.Text) = 0 then begin
-//Beep;
-//application.MessageBox('Jenis Kelamin Tidak Boleh Kosong!'+#13+
-//'Silahkan Dipilih!!!','Informasi Kosong...',MB_ICONERROR);
-//cmbJK.SetFocus;
-//end
+else if Length(cmbJK.Text) = 0 then begin
+Beep;
+application.MessageBox('Jenis Kelamin Tidak Boleh Kosong!'+#13+
+'Silahkan Dipilih!!!','Informasi Kosong...',MB_ICONERROR);
+cmbJK.SetFocus;
+end
 else begin
 //Hendel Error jika Server Nati
 try

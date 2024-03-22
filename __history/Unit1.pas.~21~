@@ -94,13 +94,6 @@ begin
   EdId.Clear;
   EdtNama.Clear;
   EdtAlamat.Clear;
-  with cmbJK do begin
-    Clear;
-    Items.Clear;
-    Items.Add('Pria');
-    Items.Add('Perempuan');
-    ItemIndex :=0;
-  end;
 end;
 
 procedure TForm1.kondisi_proses;
@@ -118,12 +111,12 @@ application.MessageBox('Id Tidak Boleh Kosong!'+#13+
 'Silahkan Diisi!!!','Informasi Kosong...',MB_ICONERROR);
 EdId.SetFocus;
 end
-//else if Length(cmbJK.Text) = 0 then begin
-//Beep;
-//application.MessageBox('Jenis Kelamin Tidak Boleh Kosong!'+#13+
-//'Silahkan Dipilih!!!','Informasi Kosong...',MB_ICONERROR);
-//cmbJK.SetFocus;
-//end
+else if Length(cmbJK.Text) = 0 then begin
+Beep;
+application.MessageBox('Jenis Kelamin Tidak Boleh Kosong!'+#13+
+'Silahkan Dipilih!!!','Informasi Kosong...',MB_ICONERROR);
+cmbJK.SetFocus;
+end
 else begin
 //Hendel Error jika Server Nati
 try
@@ -189,7 +182,7 @@ begin
     {
     http://localhost/api-json/insert.php?id=A006&nama=Gusrio%20Tendra&alamat=Dihatimu
     }
-  get_url := IdHTTP1.Get('http://localhost/api-json/insert.php?id='+HTTPEncode(EdId.Text)+'&nama='+HTTPEncode(EdtNama.Text)+'&alamat='+HTTPEncode(EdtAlamat.Text)+'&jk='+HTTPEncode(cmbJK.Text));
+  get_url := IdHTTP1.Get('http://localhost/api-json/insert.php?id='+HTTPEncode(EdId.Text)+'&nama='+HTTPEncode(EdtNama.Text)+'&alamat='+HTTPEncode(EdtAlamat.Text));
     except
   application.MessageBox('Servernya Mati.'+#13+
     'Silahkan Hubungi Admin!!!','Informasi Koneksi...',MB_ICONERROR);
@@ -249,7 +242,7 @@ http://localhost:69/tesjson/ubah.php?id=A006&nama=Gusrio%20Tendra&alamat=Dihatim
 u&jk=Laki-Laki
 }
 get_url :=
-IdHTTP1.Get('http://localhost/api-json/ubah.php?id='+EdId.Text+'&nama='+HTTPEncode(EdtNama.Text)+'&alamat='+HTTPEncode(EdtAlamat.Text)+'&jk='+HTTPEncode(cmbJK.Text));
+IdHTTP1.Get('http://localhost/api-json/ubah.php?id='+EdId.Text+'&nama='+HTTPEncode(EdtNama.Text)+'&alamat='+HTTPEncode(EdtAlamat.Text));
 except
 application.MessageBox('Servernya Mati.'+#13+
 'Silahkan Hubungi Admin!!!','Informasi Koneksi...',MB_ICONERROR);
@@ -352,13 +345,12 @@ end;
     //Load Data Ke Editbox Memo dan Combo
     EdtNama.Text:=VarToStr(js.Child[i].Field['nama'].Value);
     EdtAlamat.text :=VarToStr(js.Child[i].Field['alamat'].Value);
-    cmbJK.Text:=VarToStr(js.Child[i].Field['jk'].Value);
+    //cmbJK.Text:=VarToStr(js.Child[i].Field['jk'].Value);
     //Load Data Ke Grid
     StringGrid1.Cells[0,i+1] := IntToStr(i+1)+'.';
     StringGrid1.Cells[1, i + 1] := VarToStr(js.Child[i].Field['id'].Value);
     StringGrid1.Cells[2, i + 1] := VarToStr(js.Child[i].Field['nama'].Value);
     StringGrid1.Cells[3, i + 1] := VarToStr(js.Child[i].Field['alamat'].Value);
-    StringGrid1.Cells[4, i + 1] := VarToStr(js.Child[i].Field['jk'].Value);
     end;
     js.Free;
     end

@@ -113,6 +113,9 @@ object Form1: TForm1
     Width = 156
     Height = 21
     TabOrder = 8
+    Items.Strings = (
+      'Pria'
+      'Perempuan')
   end
   object IdHTTP1: TIdHTTP
     AllowCookies = True
@@ -128,7 +131,7 @@ object Form1: TForm1
     Request.Ranges.Units = 'bytes'
     Request.Ranges = <>
     HTTPOptions = [hoForceEncodeParams]
-    Left = 488
-    Top = 184
+    Left = 472
+    Top = 160
   end
 end
